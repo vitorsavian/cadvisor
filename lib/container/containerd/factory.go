@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -33,7 +34,7 @@ import (
 	"github.com/google/cadvisor/lib/watcher"
 )
 
-var ArgContainerdEndpoint = flag.String("containerd", "/run/containerd/containerd.sock", "containerd endpoint")
+var ArgContainerdEndpoint = flag.String("containerd", setContainerdEndpoint(), "containerd endpoint")
 var ArgContainerdNamespace = flag.String("containerd-namespace", "k8s.io", "containerd namespace")
 
 var containerdEnvMetadataWhiteList = flag.String("containerd_env_metadata_whitelist", "", "DEPRECATED: this flag will be removed, please use `env_metadata_whitelist`. A comma-separated list of environment variable keys matched with specified prefix that needs to be collected for containerd containers")
@@ -54,6 +55,13 @@ type containerdFactory struct {
 	// Information about mounted filesystems.
 	fsInfo          fs.FsInfo
 	includedMetrics container.MetricSet
+}
+
+func setContainerdEndpoint() string {
+	if addr := os.Getenv("CONTAINERD_ADDRESS"); addr != "" {
+		return addr
+	}
+	return "/run/containerd/containerd.sock"
 }
 
 func (f *containerdFactory) String() string {
