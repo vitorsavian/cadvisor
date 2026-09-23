@@ -34,7 +34,7 @@ import (
 	"github.com/google/cadvisor/lib/watcher"
 )
 
-var ArgContainerdEndpoint = flag.String("containerd", setContainerdEndpoint(), "containerd endpoint")
+var ArgContainerdEndpoint = flag.String("containerd", "/run/containerd/containerd.sock", "containerd endpoint")
 var ArgContainerdNamespace = flag.String("containerd-namespace", "k8s.io", "containerd namespace")
 
 var containerdEnvMetadataWhiteList = flag.String("containerd_env_metadata_whitelist", "", "DEPRECATED: this flag will be removed, please use `env_metadata_whitelist`. A comma-separated list of environment variable keys matched with specified prefix that needs to be collected for containerd containers")
@@ -57,18 +57,15 @@ type containerdFactory struct {
 	includedMetrics container.MetricSet
 }
 
-func setContainerdEndpoint() string {
-	if addr := os.Getenv("CONTAINERD_ADDRESS"); addr != "" {
-		return addr
-	}
-	return "/run/containerd/containerd.sock"
-}
-
 func (f *containerdFactory) String() string {
 	return k8sContainerdNamespace
 }
 
 func (f *containerdFactory) NewContainerHandler(name string, metadataEnvAllowList []string, inHostNamespace bool) (handler container.ContainerHandler, err error) {
+	if addr := os.Getenv("CADVISOR_CONTAINERD_ADDRESS"); addr != "" {
+		ArgContainerdEndpoint = &addr
+	}
+
 	client, err := Client(*ArgContainerdEndpoint, *ArgContainerdNamespace)
 	if err != nil {
 		return
@@ -138,6 +135,10 @@ func (f *containerdFactory) DebugInfo() map[string][]string {
 
 // Register root container before running this function!
 func Register(factory info.MachineInfoFactory, fsInfo fs.FsInfo, includedMetrics container.MetricSet) error {
+	if addr := os.Getenv("CADVISOR_CONTAINERD_ADDRESS"); addr != "" {
+		ArgContainerdEndpoint = &addr
+	}
+
 	client, err := Client(*ArgContainerdEndpoint, *ArgContainerdNamespace)
 	if err != nil {
 		return fmt.Errorf("unable to create containerd client: %v", err)
